@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Staff {
+  id          String    @id @default(uuid())
+  name        String
+  department  String    // "Tech Institute" | "Dry Cleaning"
+  role_title  String?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  visitors    Visitor[]
+  users       User[]
+
+  @@map("staff")
+}
+
+model User {
+  id              String    @id @default(uuid())
+  name            String
+  email           String    @unique
+  password_hash   String
+  role            String    // "Receptionist" | "Staff" | "Admin"
+  linked_staff_id String?
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  linked_staff    Staff?     @relation(fields: [linked_staff_id], references: [id], onDelete: SetNull)
+  visitors_logged Visitor[]  @relation("CreatedBy")
+  checkin_sessions CheckInSession[]
+  audit_logs      AuditLog[]
+
+  @@map("users")
+}
+
+model Visitor {
+  id                  String    @id @default(uuid())
+  full_name           String
+  phone_number        String
+  email               String?
+  arrival_datetime    DateTime  @default(now())
+  purpose_of_visit    String    // "Prospective Student" | "Existing Trainee" | "Dry Cleaning Customer" | "Business Partner" | "Job Applicant" | "Vendor" | "Other"
+  department          String    // "Tech Institute" | "Dry Cleaning"
+  staff_to_see_id     String?
+  services_requested  String?
+  expected_duration   String?   // "<15 min" | "15-30 min" | "30-60 min" | "1hr+"
+  checkout_datetime   DateTime?
+  status              String    @default("In Progress") // "In Progress" | "Completed" | "Cancelled"
+  remarks             String?
+  check_in_method     String    @default("Manual Entry") // "Manual Entry" | "Barcode Scan" | "QR Self Check-In"
+  overstay_alerted    Boolean   @default(false)
+  overstay_alerted_at DateTime?
+  created_by_user_id  String
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+
+  staff_to_see        Staff?    @relation(fields: [staff_to_see_id], references: [id], onDelete: SetNull)
+  created_by_user     User      @relation("CreatedBy", fields: [created_by_user_id], references: [id], onDelete: Restrict)
+  audit_logs          AuditLog[]
+
+  @@map("visitors")
+}
+
+model CheckInSession {
+  id                 String    @id @default(uuid())
+  token              String    @unique
+  kiosk_device_id    String?   @default("front-desk-terminal")
+  created_by_user_id String?
+  created_at         DateTime  @default(now())
+  expires_at         DateTime
+  used_count         Int       @default(0)
+  is_active          Boolean   @default(true)
+
+  created_by_user    User?     @relation(fields: [created_by_user_id], references: [id], onDelete: SetNull)
+
+  @@index([token])
+  @@map("checkin_sessions")
+}
+
+model AuditLog {
+  id                String    @id @default(uuid())
+  user_id           String
+  action            String    // "check_in" | "check_out" | "edit_visitor" | "delete_visitor" | ...
+  target_visitor_id String?
+  details           String?   // JSON stringified details
+  created_at        DateTime  @default(now())
+
+  user              User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  target_visitor    Visitor?  @relation(fields: [target_visitor_id], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}
+
+model SystemSettings {
+  id                    String   @id @default("default")
+  data_retention_months Int      @default(24)
+  auto_archive_enabled  Boolean  @default(false)
+  office_name           String   @default("Bitnoxsolution Shared Office")
+  tech_institute_name   String   @default("Bitnox Technology Institute")
+  dry_cleaning_name     String   @default("Bitnox Premium Dry Cleaning")
+  updated_at            DateTime @updatedAt
+
+  @@map("system_settings")
+}

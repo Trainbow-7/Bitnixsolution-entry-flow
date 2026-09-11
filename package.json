@@ -1,0 +1,15 @@
+{
+  "name": "bitnox-vms",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bitnoxsolution Visitor Management System (VMS)",
+  "scripts": {
+    "dev:backend": "cd backend && tsx watch src/server.ts",
+    "dev:frontend": "cd frontend && npm run dev",
+    "tunnel": "node tunnel.mjs",
+    "start:backend": "cd backend && node dist/server.js",
+    "seed": "cd backend && npm run prisma:seed",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm run build"
+  }
+}
