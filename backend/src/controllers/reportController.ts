@@ -239,7 +239,12 @@ export async function exportReportPDF(req: AuthRequest, res: Response): Promise<
       },
     });
 
-    const doc = new PDFDocument({ margin: 30, size: 'A4' });
+    const doc = new PDFDocument({
+      margin: 30,
+      size: 'A4',
+      layout: 'landscape',
+      bufferPages: true,
+    });
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
@@ -249,18 +254,32 @@ export async function exportReportPDF(req: AuthRequest, res: Response): Promise<
 
     doc.pipe(res);
 
-    // Header Banner
-    doc.rect(30, 30, 535, 55).fill('#1e293b');
-    doc.fillColor('#ffffff').fontSize(18).text('BITNOXSOLUTION VISITOR MANAGEMENT', 45, 42);
-    doc.fontSize(9).fillColor('#94a3b8').text('Shared Office: Technology Training Institute & Dry Cleaning Service', 45, 64);
+    const totalWidth = 782;
+    const leftMargin = 30;
 
-    // Report Summary
-    doc.moveDown(2);
-    doc.fillColor('#0f172a').fontSize(12).text('Visitor Records Summary Report', 35, 100);
-    doc.fontSize(9).fillColor('#475569').text(
-      `Generated on: ${new Date().toLocaleString()} | Filter: ${req.query.preset || 'Custom'} | Records: ${visitors.length}`,
-      35,
-      116
+    // Header Banner
+    doc.roundedRect(leftMargin, 25, totalWidth, 54, 4).fill('#0f172a');
+    doc.roundedRect(leftMargin, 25, 6, 54, 2).fill('#00d2ff');
+
+    doc.fillColor('#ffffff').fontSize(15).font('Helvetica-Bold').text('BITNOXSOLUTION VISITOR MANAGEMENT SYSTEM', 48, 35);
+    doc.fontSize(8.5).font('Helvetica').fillColor('#94a3b8').text(
+      'Official Visitor Registry & Audit Log  •  Technology Institute & Dry Cleaning Service',
+      48,
+      54
+    );
+
+    const filterText = req.query.preset ? `Filter: ${req.query.preset}` : 'Filter: Custom / All';
+    doc.fontSize(8).font('Helvetica').fillColor('#94a3b8').text(
+      `Generated: ${new Date().toLocaleString()}`,
+      500,
+      36,
+      { width: 300, align: 'right' }
+    );
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#38bdf8').text(
+      `${filterText}  |  Total: ${visitors.length}`,
+      500,
+      52,
+      { width: 300, align: 'right' }
     );
 
     // Summary Metric Badges
@@ -268,55 +287,85 @@ export async function exportReportPDF(req: AuthRequest, res: Response): Promise<
     const inProgress = visitors.filter((v) => v.status === 'In Progress').length;
     const cancelled = visitors.filter((v) => v.status === 'Cancelled').length;
 
-    doc.rect(35, 135, 110, 35).fill('#f1f5f9');
-    doc.fillColor('#334155').fontSize(8).text('TOTAL VISITS', 45, 142);
-    doc.fontSize(14).fillColor('#0f172a').text(String(visitors.length), 45, 153);
+    const cardW = (totalWidth - 3 * 14) / 4;
+    const cardH = 44;
+    const cardY = 90;
 
-    doc.rect(155, 135, 110, 35).fill('#f0fdf4');
-    doc.fillColor('#15803d').fontSize(8).text('COMPLETED', 165, 142);
-    doc.fontSize(14).fillColor('#166534').text(String(completed), 165, 153);
+    const cards = [
+      { label: 'TOTAL VISITOR ENTRIES', val: String(visitors.length), bg: '#f8fafc', border: '#cbd5e1', textCol: '#0f172a', lblCol: '#475569' },
+      { label: 'COMPLETED VISITS', val: String(completed), bg: '#f0fdf4', border: '#86efac', textCol: '#15803d', lblCol: '#166534' },
+      { label: 'CURRENTLY IN-OFFICE', val: String(inProgress), bg: '#fefce8', border: '#fde047', textCol: '#a16207', lblCol: '#854d0e' },
+      { label: 'CANCELLED / VOIDED', val: String(cancelled), bg: '#fef2f2', border: '#fca5a5', textCol: '#b91c1c', lblCol: '#991b1b' },
+    ];
 
-    doc.rect(275, 135, 110, 35).fill('#fef3c7');
-    doc.fillColor('#b45309').fontSize(8).text('IN PROGRESS', 285, 142);
-    doc.fontSize(14).fillColor('#92400e').text(String(inProgress), 285, 153);
+    cards.forEach((c, i) => {
+      const x = leftMargin + i * (cardW + 14);
+      doc.roundedRect(x, cardY, cardW, cardH, 4).fillAndStroke(c.bg, c.border);
+      doc.font('Helvetica-Bold').fontSize(7.5).fillColor(c.lblCol).text(c.label, x + 10, cardY + 8);
+      doc.font('Helvetica-Bold').fontSize(14).fillColor(c.textCol).text(c.val, x + 10, cardY + 22);
+    });
 
-    doc.rect(395, 135, 110, 35).fill('#fee2e2');
-    doc.fillColor('#b91c1c').fontSize(8).text('CANCELLED', 405, 142);
-    doc.fontSize(14).fillColor('#991b1b').text(String(cancelled), 405, 153);
-
-    doc.y = 185;
+    // Reset coordinates for table
+    doc.x = leftMargin;
+    doc.y = 148;
 
     // Table
     const tableData = {
-      title: '',
       headers: [
-        { label: 'Name', property: 'name', width: 90 },
-        { label: 'Phone', property: 'phone', width: 75 },
-        { label: 'Department', property: 'dept', width: 75 },
-        { label: 'Purpose', property: 'purpose', width: 95 },
-        { label: 'Staff Assigned', property: 'staff', width: 85 },
-        { label: 'Arrival', property: 'arrival', width: 60 },
-        { label: 'Status', property: 'status', width: 55 },
+        { label: 'Visitor Name', property: 'name', width: 120 },
+        { label: 'Phone Number', property: 'phone', width: 95 },
+        { label: 'Department', property: 'dept', width: 95 },
+        { label: 'Purpose of Visit', property: 'purpose', width: 120 },
+        { label: 'Host / Staff', property: 'staff', width: 115 },
+        { label: 'Arrival Time', property: 'arrival', width: 85 },
+        { label: 'Checkout Time', property: 'checkout', width: 85 },
+        { label: 'Status', property: 'status', width: 67 },
       ],
-      datas: visitors.slice(0, 100).map((v) => {
+      datas: visitors.map((v) => {
         const arrTime = new Date(v.arrival_datetime);
-        const timeStr = `${arrTime.toLocaleDateString([], { month: 'numeric', day: 'numeric' })} ${arrTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        const arrivalStr = `${arrTime.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${arrTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        const checkoutStr = v.checkout_datetime
+          ? `${new Date(v.checkout_datetime).toLocaleDateString([], { month: 'short', day: 'numeric' })} ${new Date(v.checkout_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+          : (v.status === 'In Progress' ? 'Active' : '-');
+
         return {
           name: v.full_name,
           phone: v.phone_number,
-          dept: v.department === 'Tech Institute' ? 'Tech Inst.' : 'Dry Clean',
+          dept: v.department,
           purpose: v.purpose_of_visit,
-          staff: v.staff_to_see?.name || '-',
-          arrival: timeStr,
+          staff: v.staff_to_see?.name || 'Unassigned',
+          arrival: arrivalStr,
+          checkout: checkoutStr,
           status: v.status,
         };
       }),
     };
 
     await doc.table(tableData, {
-      prepareHeader: () => doc.font('Helvetica-Bold').fontSize(8).fillColor('#1e293b'),
-      prepareRow: (row, indexColumn, indexRow, rectRow) => doc.font('Helvetica').fontSize(8).fillColor('#334155'),
+      x: leftMargin,
+      width: totalWidth,
+      columnsSize: [120, 95, 95, 120, 115, 85, 85, 67],
+      divider: {
+        header: { disabled: false, width: 1, opacity: 0.8 },
+        horizontal: { disabled: false, width: 0.5, opacity: 0.25 },
+      },
+      prepareHeader: () => doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#0f172a'),
+      prepareRow: (row, indexColumn, indexRow, rectRow) => {
+        doc.font('Helvetica').fontSize(8).fillColor('#334155');
+      },
     });
+
+    // Page Footers
+    const range = doc.bufferedPageRange();
+    for (let i = range.start; i < range.start + range.count; i++) {
+      doc.switchToPage(i);
+      doc.fontSize(7.5).font('Helvetica').fillColor('#94a3b8').text(
+        `Bitnoxsolution Visitor Management System  •  Confidential Registry Log  •  Page ${i + 1} of ${range.count}`,
+        leftMargin,
+        570,
+        { width: totalWidth, align: 'center' }
+      );
+    }
 
     doc.end();
   } catch (error) {
