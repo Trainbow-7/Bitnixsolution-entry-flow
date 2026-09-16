@@ -12,7 +12,7 @@ interface QRCodeViewProps {
 export const QRCodeView: React.FC<QRCodeViewProps> = ({
   value,
   size = 240,
-  fgColor = '#050d1a',
+  fgColor = '#000000',
   bgColor = '#ffffff',
   className = '',
 }) => {
@@ -21,9 +21,9 @@ export const QRCodeView: React.FC<QRCodeViewProps> = ({
   useEffect(() => {
     if (!value) return;
     QRCode.toDataURL(value, {
-      width: size * 2, // High-DPI 2x resolution for razor-sharp camera scanning
-      margin: 2,
-      errorCorrectionLevel: 'M',
+      width: size * 3, // Ultra high-res 3x rendering for instant camera detection
+      margin: 4, // ISO/IEC 18004 4-module quiet zone requirement
+      errorCorrectionLevel: 'Q', // High error correction level for fast scanning under light/glare
       color: {
         dark: fgColor,
         light: bgColor,
@@ -41,11 +41,11 @@ export const QRCodeView: React.FC<QRCodeViewProps> = ({
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '14px',
-        borderRadius: '16px',
+        padding: '20px',
+        borderRadius: '20px',
         background: '#ffffff',
         border: '3px solid var(--bitnox-cyan)',
-        boxShadow: '0 8px 32px rgba(0, 210, 255, 0.35), 0 4px 15px rgba(0, 0, 0, 0.6)',
+        boxShadow: '0 8px 32px rgba(0, 210, 255, 0.4), 0 4px 15px rgba(0, 0, 0, 0.6)',
       }}
     >
       {dataUrl ? (
@@ -56,7 +56,8 @@ export const QRCodeView: React.FC<QRCodeViewProps> = ({
           height={size}
           style={{
             display: 'block',
-            borderRadius: '8px',
+            borderRadius: '4px',
+            imageRendering: 'pixelated',
           }}
         />
       ) : (

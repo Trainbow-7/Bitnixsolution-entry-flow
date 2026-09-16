@@ -14,14 +14,38 @@ const ipSubmissions = new Map<string, number[]>();
 
 export function getLocalNetworkIp(): string {
   const interfaces = os.networkInterfaces();
+  const candidates: { name: string; address: string; priority: number }[] = [];
+
+  const virtualKeywords = ['vethernet', 'wsl', 'virtual', 'vmware', 'vbox', 'docker', 'tap', 'tunnel', 'vpn', 'zerotier', 'hyper-v', 'loopback', 'host-only'];
+
   for (const ifaceName of Object.keys(interfaces)) {
+    const lowerName = ifaceName.toLowerCase();
+    const isVirtual = virtualKeywords.some((keyword) => lowerName.includes(keyword));
+
     for (const iface of interfaces[ifaceName] || []) {
       if (iface.family === 'IPv4' && !iface.internal) {
-        return iface.address;
+        let priority = 10;
+
+        // Prioritize physical Wi-Fi or Ethernet
+        if (lowerName.includes('wi-fi') || lowerName.includes('wifi') || lowerName.includes('wlan') || lowerName.includes('ethernet') || lowerName.includes('eth0') || lowerName.includes('en0')) {
+          priority = 100;
+        }
+
+        // Penalize virtual interfaces
+        if (isVirtual) {
+          priority = 1;
+        }
+
+        candidates.push({ name: ifaceName, address: iface.address, priority });
       }
     }
   }
-  return '127.0.0.1';
+
+  if (candidates.length === 0) return '127.0.0.1';
+
+  // Sort by highest priority
+  candidates.sort((a, b) => b.priority - a.priority);
+  return candidates[0].address;
 }
 
 function isRateLimited(ip: string): boolean {
@@ -99,8 +123,8 @@ export async function createSession(req: AuthRequest, res: Response): Promise<vo
   try {
     const { kiosk_device_id } = req.body;
     const token = crypto.randomBytes(16).toString('hex');
-    // Display rotation timer for the kiosk screen (90 seconds)
-    const KIOSK_DISPLAY_ROTATION_SECONDS = 90;
+    // Display rotation timer for the kiosk screen (300 seconds / 5 minutes for scan stability)
+    const KIOSK_DISPLAY_ROTATION_SECONDS = 300;
     const kioskDisplayExpiry = new Date(Date.now() + KIOSK_DISPLAY_ROTATION_SECONDS * 1000);
     // Real session lifetime in DB (24 hours) - visitor can take their time to fill
     const sessionLifetimeExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);

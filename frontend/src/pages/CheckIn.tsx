@@ -73,7 +73,8 @@ export const CheckIn: React.FC<CheckInProps> = ({ onSuccessCheckIn, onNavigateTo
   // QR Self Check-In Kiosk State
   const [qrToken, setQrToken] = useState<string>('');
   const [qrExpiresAt, setQrExpiresAt] = useState<Date | null>(null);
-  const [secondsRemaining, setSecondsRemaining] = useState<number>(90);
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(300);
+  const [maxSeconds, setMaxSeconds] = useState<number>(300);
   const [qrLoading, setQrLoading] = useState<boolean>(false);
   const [recentSelfCheckins, setRecentSelfCheckins] = useState<Visitor[]>([]);
   const [highlightedVisitorId, setHighlightedVisitorId] = useState<string | null>(null);
@@ -132,7 +133,9 @@ export const CheckIn: React.FC<CheckInProps> = ({ onSuccessCheckIn, onNavigateTo
       }
       const expDate = new Date(res.expires_at);
       setQrExpiresAt(expDate);
-      setSecondsRemaining(Math.max(1, Math.round((expDate.getTime() - Date.now()) / 1000)));
+      const remaining = Math.max(1, Math.round((expDate.getTime() - Date.now()) / 1000));
+      setSecondsRemaining(remaining);
+      setMaxSeconds(Math.max(remaining, 300));
     } catch (err) {
       console.error('Failed to generate QR check-in session:', err);
     } finally {
@@ -162,20 +165,19 @@ export const CheckIn: React.FC<CheckInProps> = ({ onSuccessCheckIn, onNavigateTo
     }
     fetchRecentSelfCheckins();
 
-    // Countdown interval every second
+    // Stable 1-second countdown loop without tearing down on token changes
     const timer = setInterval(() => {
       setSecondsRemaining((prev) => {
         if (prev <= 2) {
-          // Silently refresh session token before it expires
           generateNewQRSession(true);
-          return 90;
+          return 300;
         }
         return prev - 1;
       });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [checkInMode, qrToken]);
+  }, [checkInMode]);
 
   // 4. Real-time SSE Stream & Polling fallback for live self-checkin events
   useEffect(() => {
@@ -632,7 +634,7 @@ export const CheckIn: React.FC<CheckInProps> = ({ onSuccessCheckIn, onNavigateTo
               >
                 <div
                   style={{
-                    width: `${(secondsRemaining / 90) * 100}%`,
+                    width: `${(secondsRemaining / (maxSeconds || 300)) * 100}%`,
                     height: '100%',
                     background: secondsRemaining <= 10 ? '#f59e0b' : 'var(--bitnox-gradient)',
                     transition: 'width 1s linear',
