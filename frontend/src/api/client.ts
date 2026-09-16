@@ -43,21 +43,27 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-// Wrapper that attempts the live backend API, and falls back to mockApi if 404/network fails
+// Wrapper that attempts the live backend API, and falls back to mockApi if 404/5xx/network fails
 async function withFallback<T>(apiFn: () => Promise<T>, fallbackFn: () => Promise<T>): Promise<T> {
   try {
     return await apiFn();
   } catch (err: any) {
-    // If running on Vercel without backend or backend returned 404 / connection error
-    if (
+    // If running on Vercel or backend returned 404 / 500 / 502 / network error
+    const isServerError =
       err.status === 404 ||
+      (err.status >= 500 && err.status <= 599) ||
       err.message?.includes('404') ||
+      err.message?.includes('500') ||
+      err.message?.includes('502') ||
+      err.message?.includes('503') ||
+      err.message?.includes('504') ||
+      err.message?.includes('Server error') ||
       err.message?.includes('Failed to fetch') ||
       err.message?.includes('NetworkError') ||
-      err.message?.includes('Server error: 502') ||
-      err.name === 'TypeError'
-    ) {
-      console.warn('[Bitnox API] Live API endpoint unavailable, switching to local store fallback:', err.message);
+      err.name === 'TypeError';
+
+    if (isServerError) {
+      console.warn('[Bitnox API] Live API endpoint unavailable or returned 5xx, switching to local store fallback:', err.message);
       return await fallbackFn();
     }
     throw err;
