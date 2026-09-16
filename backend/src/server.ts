@@ -51,8 +51,13 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   });
 });
 
+// Export app for serverless / Vercel
+export default app;
+
 // Start Server
-app.listen(config.port, '0.0.0.0', () => {
-  console.log(`[Bitnox VMS Backend] Server listening at http://0.0.0.0:${config.port}`);
-  initOverstayCron(30000);
-});
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(config.port, '0.0.0.0', () => {
+    console.log(`[Bitnox VMS Backend] Server listening at http://0.0.0.0:${config.port}`);
+    initOverstayCron(30000);
+  });
+}

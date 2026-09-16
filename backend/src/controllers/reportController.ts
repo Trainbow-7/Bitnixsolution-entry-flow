@@ -351,7 +351,7 @@ export async function exportReportPDF(req: AuthRequest, res: Response): Promise<
       },
       prepareHeader: () => doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#0f172a'),
       prepareRow: (row, indexColumn, indexRow, rectRow) => {
-        doc.font('Helvetica').fontSize(8).fillColor('#334155');
+        return doc.font('Helvetica').fontSize(8).fillColor('#334155');
       },
     });
 
