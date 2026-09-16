@@ -12,6 +12,7 @@ import auditRoutes from './routes/auditRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import checkinSessionRoutes from './routes/checkinSessionRoutes.js';
 import { initOverstayCron } from './services/overstayService.js';
+import { ensureDatabaseReady } from './prisma.js';
 
 const app = express();
 
@@ -26,6 +27,17 @@ app.use(
   })
 );
 app.use(express.json());
+
+// Auto DB setup middleware for serverless / cold start resilience
+app.use(async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await ensureDatabaseReady();
+    next();
+  } catch (err) {
+    console.error('Database readiness error:', err);
+    res.status(500).json({ error: 'Database initialization failed.' });
+  }
+});
 
 // Health Check
 app.get('/api/health', (req: Request, res: Response) => {
