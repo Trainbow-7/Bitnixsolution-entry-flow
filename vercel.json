@@ -5,7 +5,9 @@
       "root": "frontend"
     },
     "backend": {
-      "root": "backend"
+      "root": "backend",
+      "buildCommand": "npm run build",
+      "entrypoint": "dist/server.js"
     }
   },
   "rewrites": [

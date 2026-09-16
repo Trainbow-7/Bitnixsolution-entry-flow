@@ -1,6 +1,7 @@
 {
   "name": "bitnox-vms-backend",
   "version": "1.0.0",
+  "type": "module",
   "description": "Backend API for Bitnoxsolution Visitor Management System",
   "main": "dist/server.js",
   "scripts": {
