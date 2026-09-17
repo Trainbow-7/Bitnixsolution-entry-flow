@@ -102,12 +102,19 @@ export function setTunnelUrl(req: Request, res: Response): void {
  */
 export function getNetworkInfo(req: Request, res: Response): void {
   const lanIp = getLocalNetworkIp();
-  const effectiveBase = activePublicTunnelUrl || `http://${lanIp}:5180`;
+  const rawProto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'http';
+  const proto = rawProto.split(',')[0].trim();
+  const rawHost = (req.headers['x-forwarded-host'] as string) || req.headers.host || '';
+  const host = rawHost.split(',')[0].trim();
+  const isCloud = host && !host.includes('localhost') && !host.includes('127.0.0.1');
+  const cloudUrl = isCloud ? `${proto}://${host}` : undefined;
+  const effectiveBase = activePublicTunnelUrl || cloudUrl || `http://${lanIp}:5180`;
+
   res.json({
     lan_ip: lanIp,
     web_port: 5180,
     api_port: 5000,
-    public_tunnel_url: activePublicTunnelUrl,
+    public_tunnel_url: activePublicTunnelUrl || cloudUrl,
     suggested_terminal_url: effectiveBase,
     suggested_checkin_url_prefix: `${effectiveBase}/checkin/session/`,
   });
@@ -140,7 +147,13 @@ export async function createSession(req: AuthRequest, res: Response): Promise<vo
     });
 
     const lanIp = getLocalNetworkIp();
-    const effectiveBase = activePublicTunnelUrl || `http://${lanIp}:5180`;
+    const rawProto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'http';
+    const proto = rawProto.split(',')[0].trim();
+    const rawHost = (req.headers['x-forwarded-host'] as string) || req.headers.host || '';
+    const host = rawHost.split(',')[0].trim();
+    const isCloud = host && !host.includes('localhost') && !host.includes('127.0.0.1');
+    const cloudUrl = isCloud ? `${proto}://${host}` : undefined;
+    const effectiveBase = activePublicTunnelUrl || cloudUrl || `http://${lanIp}:5180`;
     const networkCheckinUrl = `${effectiveBase}/checkin/session/${session.token}`;
 
     res.status(201).json({
@@ -149,7 +162,7 @@ export async function createSession(req: AuthRequest, res: Response): Promise<vo
       // Pass kiosk display expiry to frontend for the 90s visual countdown bar
       expires_at: kioskDisplayExpiry.toISOString(),
       lan_ip: lanIp,
-      public_tunnel_url: activePublicTunnelUrl,
+      public_tunnel_url: activePublicTunnelUrl || cloudUrl,
       checkin_url: `/checkin/session/${session.token}`,
       network_checkin_url: networkCheckinUrl,
     });

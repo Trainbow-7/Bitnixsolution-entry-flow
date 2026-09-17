@@ -24,23 +24,33 @@ function getSessionTokenFromUrl(): string | null {
   const path = window.location.pathname;
   const hash = window.location.hash;
 
-  // 1. Check pathname: /checkin/session/:token
-  const pathMatch = path.match(/\/checkin\/session\/([a-zA-Z0-9_-]+)/);
+  // 1. Check pathname: /checkin/session/:token or /self-checkin/:token
+  const pathMatch = path.match(/\/(?:checkin\/session|self-checkin)\/([a-zA-Z0-9_-]+)/);
   if (pathMatch && pathMatch[1]) {
     return pathMatch[1];
   }
 
-  // 2. Check hash: #/checkin/session/:token or #checkin/session/:token
-  const hashMatch = hash.match(/checkin\/session\/([a-zA-Z0-9_-]+)/);
+  // 2. Check hash: #/checkin/session/:token or #checkin/session/:token or #/self-checkin/:token
+  const hashMatch = hash.match(/(?:checkin\/session|self-checkin)\/([a-zA-Z0-9_-]+)/);
   if (hashMatch && hashMatch[1]) {
     return hashMatch[1];
   }
 
-  // 3. Check query param: ?session=token
+  // 3. Check query param: ?session=token, ?token=token, ?s=token
   const searchParams = new URLSearchParams(window.location.search);
-  const sessionParam = searchParams.get('session');
+  const sessionParam = searchParams.get('token') || searchParams.get('session') || searchParams.get('s');
   if (sessionParam) {
     return sessionParam;
+  }
+
+  // 4. Check hash query params: #/self-checkin?token=...
+  if (hash.includes('?')) {
+    const hashQuery = hash.split('?')[1];
+    const hashParams = new URLSearchParams(hashQuery);
+    const hashToken = hashParams.get('token') || hashParams.get('session') || hashParams.get('s');
+    if (hashToken) {
+      return hashToken;
+    }
   }
 
   return null;
