@@ -310,17 +310,18 @@ export const CheckIn: React.FC<CheckInProps> = ({ onSuccessCheckIn, onNavigateTo
     const tokenPart = qrToken || 'default';
 
     if (customHost.trim()) {
-      const host = customHost.trim();
+      const host = customHost.trim().replace(/\/+$/, '');
       const proto = host.startsWith('http') ? '' : `${window.location.protocol}//`;
-      return `${proto}${host}/checkin/session/${tokenPart}`;
+      return `${proto}${host}/?session=${tokenPart}`;
     }
 
     // Default: Public Internet URL so visitors on 4G/5G/LTE can scan without needing office Wi-Fi
     if (networkReachability === 'internet' && publicTunnelUrl) {
-      return `${publicTunnelUrl}/checkin/session/${tokenPart}`;
+      const tunnel = publicTunnelUrl.replace(/\/+$/, '');
+      return `${tunnel}/?session=${tokenPart}`;
     }
 
-    return `${window.location.protocol}//${effectiveHost}/checkin/session/${tokenPart}`;
+    return `${window.location.protocol}//${effectiveHost}/?session=${tokenPart}`;
   })();
 
   const copyQrLink = () => {
